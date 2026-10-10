@@ -1,1 +1,8 @@
-
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.lucasgamer103lg.pbrskinsforbedrock",
+        "sha256_cert_fingerprints": ["B8:50:4A:DB:91:00:11:90:ED:E0:CC:AE:46:2B:FF:AF:40:B3:3B:CC:7D:0F:98:24:EE:A5:38:21:D8:02:71:70"]
+      }
+    }]
