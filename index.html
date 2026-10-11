@@ -34,6 +34,7 @@ details{background:var(--card);border:1px solid var(--bd);border-radius:12px;pad
 <h1>Pacote PBR para skins</h1>
 <details open><summary>Como usar</summary><ol><li>Adicione um jogador e escreva a Gamertag.</li><li>Envie a skin (PNG). Se tiver o mapa MER/MERS, converta; senão, pinte à mão.</li><li>Use <b>Desfazer</b> se errar e <b>Ver em 3D</b> para conferir.</li><li>Toque em <b>Gerar pacote</b> no fim da página.</li></ol></details>
 <div class="row"><input type="text" id="pn" value="Minhas skins PBR" aria-label="Nome do pacote"></div>
+<div class="row"><label><b>Já tem um pacote?</b> Importe para continuar editando: <input type="file" id="imp"></label></div><p class="n">Aceita .mcpack ou .zip feitos por este site e pacotes de skins com materiais de valor fixo ou mapa MER.</p>
 <div id="list"></div>
 <button id="add" type="button">+ Adicionar jogador</button>
 <div class="row"><label><input type="checkbox" id="all"> Teste: valer para todos os jogadores (ignora o nome, usa só o primeiro)</label></div>
@@ -87,6 +88,37 @@ else if(t.classList.contains("dc")){snap(p);const a=p.act;for(let i=0;i<p.lab.le
 $("#list").addEventListener("pointerdown",e=>{const k=e.target.closest(".card");if(!k||e.target.tagName!="CANVAS")return;const p=k._p;if(p.tool=="scroll")return;e.preventDefault();p.cv.setPointerCapture(e.pointerId);p.dn=1;snap(p);const[x,y]=pt(p,e);paint(p,x,y,1);draw(p)});
 $("#list").addEventListener("pointermove",e=>{const k=e.target.closest(".card");if(!k||e.target.tagName!="CANVAS")return;const p=k._p;if(!p.dn||(p.tool!="brush"&&p.tool!="erase"))return;const[x,y]=pt(p,e);paint(p,x,y,0);draw(p)});
 $("#list").addEventListener("pointerup",e=>{const k=e.target.closest(".card");if(k)k._p.dn=0});
+const bom=s=>s.replace(/^\uFEFF/,"");
+function nameFor(c,i){for(const[k,v]of Object.entries(PRE))if(v[0]==c.m&&v[1]==c.e&&v[2]==c.r)return k;return"Importado "+(i+1)}
+async function importPack(f){try{
+if(!window.JSZip){msg("Não foi possível carregar a biblioteca de zip.");return}
+msg("Lendo o pacote…");const z=await JSZip.loadAsync(f),jr=async n=>{const o=z.file(n);if(!o)return null;try{return JSON.parse(bom(await o.async("string")))}catch(_){return null}};
+const ent=await jr("entity/player.entity.json");if(!ent){msg("Não achei entity/player.entity.json neste pacote.");return}
+const d=ent["minecraft:client_entity"].description,rcs={};
+for(const n of Object.keys(z.files).filter(n=>/^render_controllers\/.+\.json$/.test(n))){const j=await jr(n);if(j&&j.render_controllers)Object.assign(rcs,j.render_controllers)}
+const groups={};
+for(const it of d.render_controllers||[]){const[id,cond]=Object.entries(it)[0];if(id.startsWith("controller.render.player."))continue;const rc=rcs[id];if(!rc)continue;const tk=String((rc.textures||[])[0]||"").replace("Texture.",""),path=(d.textures||{})[tk];if(!path)continue;const gk=String(rc.geometry||"").replace("Geometry.",""),slim=/slim/i.test((d.geometry||{})[gk]||"");const m=/is_name_any\(\s*'([^']+)'/.exec(cond||""),name=m?m[1]:"";const g=groups[name||"?"]??={name,slim,paths:[]};if(!g.paths.includes(path))g.paths.push(path)}
+const keys=Object.keys(groups);if(!keys.length){msg("Não encontrei skins com material neste pacote.");return}
+players.filter(p=>!p.lab&&!p.tag).forEach(p=>p.card.remove());players=players.filter(p=>p.lab||p.tag);
+let ok=0,warn="";
+for(const k of keys){const g=groups[k];add();const p=players[players.length-1],drop=()=>{p.card.remove();players.pop()};p.tag=g.name;p.slim=g.slim;p.card.querySelector(".tag").value=g.name;if(g.slim)p.card.querySelector("input[value=s]").checked=true;
+ const parts=[];for(const path of g.paths){const dir=path.includes("/")?path.slice(0,path.lastIndexOf("/")+1):"",ts=await jr(path+".texture_set.json"),T=(ts&&ts["minecraft:texture_set"])||{};
+  const cname=typeof T.color=="string"?T.color:path.slice(dir.length),cf=z.file(dir+cname+".png")||z.file(path+".png");if(!cf)continue;
+  const col=await readImg(await cf.async("blob"));if(!col)continue;
+  let mer=T.metalness_emissive_roughness_subsurface||T.metalness_emissive_roughness,img=null;if(typeof mer=="string"){const mf=z.file(dir+mer+".png");if(mf)img=await readImg(await mf.async("blob"));mer=null}
+  parts.push({col,mer:Array.isArray(mer)?mer.slice(0,3).map(Number):null,img})}
+ if(!parts.length){drop();continue}
+ const w=parts[0].col.w;if(w!=parts[0].col.h||![64,128].includes(w)){warn+=` A skin de "${g.name||"sem nome"}" não é 64×64 nem 128×128.`;drop();continue}
+ const dd=new Uint8ClampedArray(w*w*4);p.w=w;p.lab=new Uint8Array(w*w);p.cls=[];
+ for(const x of parts){if(x.col.w!=w)continue;for(let i=0;i<w*w;i++)if(x.col.d[i*4+3]>=2&&!dd[i*4+3])dd.set(x.col.d.subarray(i*4,i*4+4),i*4)}
+ p.d=dd;const im=parts.find(x=>x.img&&x.img.w==w);
+ if(im){conv(p,im.img.d,6,true);p.cls.forEach((c,i)=>c.n=nameFor(c,i))}
+ else{for(const x of parts){if(x.col.w!=w||!x.mer)continue;if(p.cls.length>=8){warn+=" Mais de 8 materiais: os extras foram ignorados.";break}const ci=p.cls.length;p.cls.push({n:nameFor({m:x.mer[0],e:x.mer[1],r:x.mer[2]},ci),m:x.mer[0],e:x.mer[1],r:x.mer[2]});for(let i=0;i<w*w;i++)if(x.col.d[i*4+3]>=2)p.lab[i]=ci}
+  if(!p.cls.length)p.cls=[{n:"Fosco",m:0,e:0,r:190}]}
+ p.act=0;p.u=[];p.r=[];p.cv.width=p.cv.height=w;p.card.querySelector(".ed").classList.add("v");draw(p);ctl(p);hb(p);ok++}
+const man=await jr("manifest.json");if(man&&man.header&&man.header.name)$("#pn").value=man.header.name;
+msg(ok?`Importado: ${ok} jogador(es).${warn}`:"Não consegui ler nenhuma skin deste pacote."+warn)}catch(err){msg("Erro ao importar: "+(err.message||err))}}
+$("#imp").addEventListener("change",async e=>{if(e.target.files[0])await importPack(e.target.files[0]);e.target.value=""});
 $("#add").onclick=add;
 $("#gen").onclick=async()=>{try{
 if(!window.JSZip){msg("Não foi possível carregar a biblioteca de zip. Conecte-se à internet e recarregue.");return}
