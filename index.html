@@ -47,7 +47,7 @@ details{border-radius:12px}summary{cursor:pointer;font-weight:600;min-height:32p
 <section class="sec"><h2><span class="num">2</span>Jogadores</h2><p class="n">Um cartão por Gamertag. Todos entram no mesmo pacote, para jogar juntos no multiplayer local.</p>
 <div id="list"></div><button id="add" type="button">+ Adicionar jogador</button></section>
 <details class="how"><summary>Opções avançadas (só se algo não funcionar)</summary>
-<div class="step"><b>Arquivo do jogador</b><p class="n">O pacote já traz o arquivo do jogador do jogo (versão 1.26), com a geometria, o material e as animações padrão. Só envie o seu <code>player.entity.json</code> se a sua versão do jogo for diferente.</p><div class="row"><label><input type="file" id="vf" accept=".json"></label></div></div>
+<div class="step"><b>Arquivo do jogador</b><p class="n">O pacote já traz o arquivo do jogador do jogo (versão 1.26), com a geometria, o material e as animações padrão, mais a correção do braço ao atacar em 3ª pessoa, que vai sempre incluída. Só envie o seu <code>player.entity.json</code> se a sua versão do jogo for diferente.</p><div class="row"><label><input type="file" id="vf" accept=".json"></label></div></div>
 <div class="step"><b>Teste</b><div class="row"><label><input type="checkbox" id="all"> Valer para todos os jogadores (ignora o nome, usa só o primeiro)</label></div></div></details>
 <div class="bar"><div id="st" role="status"></div><button class="go" id="gen" type="button">Gerar pacote</button></div>
 <p class="n foot">Se o arquivo vier como .zip, renomeie para .mcpack antes de abrir. Escreva a Gamertag exatamente como no jogo; se a skin não aparecer, use o teste em Opções. Cada material vira uma passada de desenho (máximo 8 por jogador). A skin é o desenho aberto do modelo: cabeça no alto à esquerda, corpo no centro.</p>
@@ -148,7 +148,7 @@ for(let q=0;q<p.w*p.w;q++){if(p.d[q*4+3]>=2&&idx.includes(p.lab[q]))im.data.set(
 zip.file(`textures/entity/pbr_${key}.png`,await new Promise(r=>c.toBlob(r,"image/png")));
 zip.file(`textures/entity/pbr_${key}.texture_set.json`,JSON.stringify({format_version:"1.16.100","minecraft:texture_set":{color:`pbr_${key}`,metalness_emissive_roughness:val.split(",").map(Number)}}));
 tex[key]=`textures/entity/pbr_${key}`;rcs[`controller.render.pbr_${key}`]=mkrc(key);list.push([`controller.render.pbr_${key}`,i])}}
-const e=V.ent,d=e["minecraft:client_entity"].description;Object.assign(d.textures,tex);
+const e=V.ent,d=e["minecraft:client_entity"].description;Object.assign(d.textures,tex);if(!d.animations.fix_attack_pos){d.animations.fix_attack_pos="animation.player.attack.positions";d.animations.fix_attack_rot="animation.player.attack.rotations";const fc="variable.attack_time > 0.0 && !variable.is_first_person";d.scripts.animate=[...(d.scripts.animate||[]),{fix_attack_pos:fc},{fix_attack_rot:fc}]}
 const names=ps.map(p=>`'${clean(p.tag)}'`).join(", "),items=d.render_controllers.map(x=>Object.entries(x)[0]),tp=(items.find(([id])=>id=="controller.render.player.third_person")||[0,"!variable.is_first_person && !variable.map_face_icon"])[1];
 d.render_controllers=[...items.map(([id,c])=>({[id]:id=="controller.render.player.third_person"?(test?"false":`(${c}) && !query.is_name_any(${names})`):c})),...list.map(([id,i])=>({[id]:test?(i==0?tp:"false"):`(${tp}) && query.is_name_any('${clean(ps[i].tag)}')`}))];
 zip.file("entity/player.entity.json",JSON.stringify(e,null,1));zip.file("render_controllers/pbr_skins.render_controllers.json",JSON.stringify({format_version:"1.8.0",render_controllers:rcs}));
